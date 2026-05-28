@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UCITAF — CI/CD Test Analytics Dashboard</title>
+  <meta name="description" content="Muhammad Aqeel — AI-Enabled CI/CD Test Analytics Framework Research Results" />
+
+  <!-- Tailwind CSS CDN — no build step needed -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            navy: '#1B3A6B',
+            teal: '#0D7680',
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Lora:wght@400;700&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ── Base ── */
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: #060d1a;
+      color: #e2e8f0;
+      font-family: 'Lora', Georgia, serif;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+    code, .mono { font-family: 'IBM Plex Mono', 'Courier New', monospace; }
+
+    /* ── Grid background ── */
+    .grid-bg {
+      background-image:
+        linear-gradient(rgba(13,118,128,0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(13,118,128,0.05) 1px, transparent 1px);
+      background-size: 44px 44px;
+    }
+
+    /* ── Scan line animation ── */
+    @keyframes scan {
+      0%   { transform: translateY(-4px); }
+      100% { transform: translateY(100vh); }
+    }
+    .scan-line {
+      position: fixed; top: 0; left: 0; right: 0; height: 2px; z-index: 9999;
+      background: linear-gradient(90deg, transparent 0%, rgba(13,118,128,0.7) 50%, transparent 100%);
+      animation: scan 9s linear infinite;
+      pointer-events: none;
+    }
+
+    /* ── Card ── */
+    .card {
+      background: rgba(12, 19, 36, 0.82);
+      border: 1px solid rgba(27, 58, 107, 0.45);
+      border-radius: 10px;
+      backdrop-filter: blur(8px);
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .card:hover {
+      border-color: rgba(13, 118, 128, 0.55);
+      box-shadow: 0 0 22px rgba(13, 118, 128, 0.12);
+    }
+
+    /* ── Active tab ── */
+    .tab-active {
+      background: rgba(13, 118, 128, 0.18) !important;
+      border-color: rgba(13, 118, 128, 0.7) !important;
+      color: #5eead4 !important;
+    }
+
+    /* ── Badges ── */
+    .badge {
+      display: inline-block; padding: 2px 9px;
+      border-radius: 999px; font-size: 11px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-weight: 600; letter-spacing: 0.03em;
+    }
+    .badge-green { background: rgba(22,101,52,0.3);  color: #86efac; border: 1px solid rgba(22,101,52,0.5); }
+    .badge-teal  { background: rgba(13,118,128,0.3); color: #5eead4; border: 1px solid rgba(13,118,128,0.5); }
+    .badge-amber { background: rgba(180,83,9,0.3);   color: #fcd34d; border: 1px solid rgba(180,83,9,0.5); }
+    .badge-navy  { background: rgba(27,58,107,0.4);  color: #93c5fd; border: 1px solid rgba(27,58,107,0.6); }
+
+    /* ── Table ── */
+    table { border-collapse: collapse; width: 100%; }
+    thead th {
+      background: rgba(27,58,107,0.45);
+      color: #93c5fd;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      padding: 10px 14px;
+      text-align: left;
+      border-bottom: 1px solid rgba(13,118,128,0.35);
+      white-space: nowrap;
+      font-family: 'IBM Plex Mono', monospace;
+    }
+    tbody td {
+      padding: 9px 14px;
+      border-bottom: 1px solid rgba(27,58,107,0.2);
+      font-size: 13px;
+      color: #cbd5e1;
+    }
+    tbody tr:nth-child(even) td { background: rgba(27,58,107,0.07); }
+    tbody tr:hover td { background: rgba(13,118,128,0.07); transition: background 0.15s; }
+
+    /* ── Fade animation ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    #tab-content { animation: fadeUp 0.28s ease; }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: #060d1a; }
+    ::-webkit-scrollbar-thumb { background: #1B3A6B; border-radius: 4px; }
+
+    /* ── Canvas responsive ── */
+    canvas { max-width: 100%; display: block; }
+
+    /* ── Pulse dot ── */
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    .pulse { animation: pulse 2s ease-in-out infinite; }
+
+    /* ── Border pulse for formula ── */
+    @keyframes borderPulse {
+      0%,100% { border-color: rgba(13,118,128,0.4); }
+      50%      { border-color: rgba(13,118,128,0.9); }
+    }
+    .border-pulse { animation: borderPulse 2.5s ease-in-out infinite; }
+  </style>
+</head>
+
+<body class="grid-bg">
+  <!-- Scan line -->
+  <div class="scan-line"></div>
+
+  <!-- ── HEADER ─────────────────────────────────────────────────── -->
+  <header style="background:rgba(6,13,26,0.97);border-bottom:1px solid rgba(27,58,107,0.5);position:sticky;top:0;z-index:100;">
+    <div class="max-w-7xl mx-auto px-4 md:px-6 py-4">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+        <div>
+          <div class="flex items-center gap-2 mb-1">
+            <span class="pulse w-2 h-2 rounded-full bg-teal-400 inline-block"></span>
+            <span class="text-xs mono text-teal-400 uppercase tracking-widest">Research Dashboard · Live</span>
+          </div>
+          <h1 class="text-lg md:text-xl font-bold text-white leading-snug">
+            AI-Enabled CI/CD Test Analytics Framework
+          </h1>
+          <p class="text-xs text-slate-400 mt-0.5">Failure Prediction · Flaky Detection · Log Classification · CQS</p>
+        </div>
+        <div class="text-xs text-slate-500 leading-relaxed text-right">
+          <div class="text-slate-300 font-semibold">Muhammad Aqeel · 2024(s)-MS-SE-07</div>
+          <div>Supervisor: Dr. Tauqir Ahmad</div>
+          <div>Dept. of CS · UET Lahore · 2025–2026</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── MAIN ───────────────────────────────────────────────────── -->
+  <main class="max-w-7xl mx-auto px-4 md:px-6 py-6">
+
+    <!-- Key metrics -->
+    <div id="key-metrics" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+      <!-- Populated by JS -->
+    </div>
+
+    <!-- Tab bar -->
+    <div class="mb-6 border-b border-navy/30 pb-4">
+      <div id="tab-bar" class="flex flex-wrap gap-2">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+
+    <!-- Tab content -->
+    <div id="tab-content">
+      <!-- Populated by JS -->
+    </div>
+
+  </main>
+
+  <!-- ── FOOTER ─────────────────────────────────────────────────── -->
+  <footer class="border-t border-navy/30 py-6 text-center text-xs text-slate-600 mt-10">
+    <p>Muhammad Aqeel · 2024(s)-MS-SE-07 · Department of Computer Science · UET Lahore · 2025–2026</p>
+    <p class="mt-1">Supervisor: Dr. Tauqir Ahmad &nbsp;|&nbsp; AI-Enabled Framework for Intelligent Test Analysis &amp; Continuous Quality Improvement in CI/CD Pipelines</p>
+  </footer>
+
+  <!-- ── SCRIPTS (order matters) ───────────────────────────────── -->
+  <script src="js/data.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
